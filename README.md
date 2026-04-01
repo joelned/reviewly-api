@@ -1,4 +1,3 @@
-```markdown
 # 🚀 Running Reviewly Locally
 
 ## Prerequisites
