@@ -15,7 +15,7 @@ class Profile(Base, TimeStampMixin):
     github_url: Mapped[str | None] = mapped_column(String(255))
     avatar_url: Mapped[str | None] = mapped_column(String(500))
 
-    user: Mapped["User"] = relationship(back_populates="profile")
+    user: Mapped["User"] = relationship(back_populates="profile")  # type: ignore  # noqa: F821
     skills: Mapped[list["ReviewerSkills"]] = relationship(
         back_populates="profile", cascade="all, delete-orphan"
     )

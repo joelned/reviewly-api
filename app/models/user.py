@@ -23,7 +23,7 @@ class User(Base, TimeStampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     refresh_tokens: Mapped["RefreshToken"] = relationship(back_populates="user")
-    profile: Mapped["Profile"] = relationship(back_populates="user")  # Relationships
+    profile: Mapped["Profile"] = relationship(back_populates="user")  # type: ignore # noqa: F821
 
 
 # Linter warnings appear because classes aren't directly imported in model files, but SQLAlchemy resolves them after all models load.
