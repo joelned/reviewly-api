@@ -1,4 +1,12 @@
-from sqlalchemy import String, Boolean, Enum as SAEnum, ForeignKey, DateTime, func
+from sqlalchemy import (
+    String,
+    Integer,
+    Boolean,
+    Enum as SAEnum,
+    ForeignKey,
+    DateTime,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base, TimeStampMixin
 from datetime import datetime
@@ -24,6 +32,9 @@ class User(Base, TimeStampMixin):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     refresh_tokens: Mapped["RefreshToken"] = relationship(back_populates="user")
     profile: Mapped["Profile"] = relationship(back_populates="user")  # type: ignore # noqa: F821
+    verification_codes: Mapped[list["EmailVerificationCode"]] = relationship(
+        back_populates="user"
+    )
 
 
 # Linter warnings appear because classes aren't directly imported in model files, but SQLAlchemy resolves them after all models load.
@@ -46,6 +57,19 @@ class RefreshToken(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+
+
+class EmailVerificationCode(Base):
+    __tablename__ = "email_verification_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    code: Mapped[str] = mapped_column(String(6), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    attempts: Mapped[bool] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    user: Mapped["User"] = relationship(back_populates="verification_codes")
 
 
 def hash_token(token: str) -> str:
