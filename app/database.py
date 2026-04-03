@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.sql import func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from app.config import settings
-from sqlalchemy.schema import Column, DateTime
+from sqlalchemy import func, DateTime
+from datetime import datetime
 
 engine = create_async_engine(
     url=settings.database_url,
@@ -17,8 +17,12 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 class TimeStampMixin:
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Base(DeclarativeBase):
