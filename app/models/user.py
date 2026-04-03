@@ -1,5 +1,5 @@
 from sqlalchemy import String, Boolean, Enum as SAEnum, ForeignKey, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship  # relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base, TimeStampMixin
 from datetime import datetime
 import hashlib
@@ -23,13 +23,15 @@ class User(Base, TimeStampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     refresh_tokens: Mapped["RefreshToken"] = relationship(back_populates="user")
+    profile: Mapped["Profile"] = relationship(back_populates="user")  # Relationships
 
-    # Relationships
 
-    # TODO: implement these relationships at a later time
-    # submissions: Mapped[list["Submission"]] = relationship(back_populates="author")
-    # reviews: Mapped[list["Review"]] = relationship(back_populates="reviewer")
-    # notifications: Mapped[list["Notification"]] = relationship(back_populates="user")
+# Linter warnings appear because classes aren't directly imported in model files, but SQLAlchemy resolves them after all models load.
+
+# TODO: implement these relationships at a later time
+# submissions: Mapped[list["Submission"]] = relationship(back_populates="author")
+# reviews: Mapped[list["Review"]] = relationship(back_populates="reviewer")
+# notifications: Mapped[list["Notification"]] = relationship(back_populates="user")
 
 
 class RefreshToken(Base):
