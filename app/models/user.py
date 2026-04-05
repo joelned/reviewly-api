@@ -30,10 +30,13 @@ class User(Base, TimeStampMixin):
     role: Mapped[UserRole] = mapped_column(SAEnum(UserRole), default=UserRole.SUBMITTER)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    refresh_tokens: Mapped["RefreshToken"] = relationship(back_populates="user")
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user")
     profile: Mapped["Profile"] = relationship(back_populates="user")  # type: ignore # noqa: F821
     verification_codes: Mapped[list["EmailVerificationCode"]] = relationship(
         back_populates="user"
+    )
+    password_reset_codes: Mapped[list["PasswordResetCode"]] = relationship(
+        "PasswordResetCode", back_populates="user"
     )
 
 
@@ -49,7 +52,7 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -63,13 +66,36 @@ class EmailVerificationCode(Base):
     __tablename__ = "email_verification_codes"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     code: Mapped[str] = mapped_column(String(6), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     used: Mapped[bool] = mapped_column(Boolean, default=False)
     attempts: Mapped[bool] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     user: Mapped["User"] = relationship(back_populates="verification_codes")
+
+
+class PasswordResetCode(Base):
+    __tablename__ = "password_reset_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    code: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+    )
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="password_reset_codes")
 
 
 def hash_token(token: str) -> str:
