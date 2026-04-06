@@ -27,10 +27,11 @@ async def store_refresh_token(db: AsyncSession, user_id: int, token: str) -> Non
     )
 
     db.add(record)
-    await db.commit()
 
 
-async def register_user(db: AsyncSession, data: RegisterRequest) -> dict:
+async def register_user(
+    db: AsyncSession, data: RegisterRequest, email_service: EmailService
+) -> dict:
     existing_email = await db.execute(select(User).where(User.email == data.email))
     if existing_email.scalar_one_or_none():
         raise HTTPException(400, "An account with this email already exists")
@@ -42,31 +43,29 @@ async def register_user(db: AsyncSession, data: RegisterRequest) -> dict:
     if existing_username.scalar_one_or_none():
         raise HTTPException(400, "An account with this username already exists")
 
-    role = UserRole.REVIEWER if data.role == "reviewer" else UserRole.SUBMITTER
-
     user = User(
         email=data.email,
         username=data.username,
         password=hash_password(data.password),
-        role=role,
+        role=UserRole.REVIEWER if data.role == "reviewer" else UserRole.SUBMITTER,
     )
 
     db.add(user)
     await db.flush()
 
-    profile = Profile(user_id=user.id, display_name=user.username)
-    db.add(profile)
-
-    await db.commit()
-    await db.refresh(user)
+    db.add(Profile(user_id=user.id, display_name=user.username))
 
     code = await create_verification_code(db, user.id)
-    await EmailService.send_verification_code(user.email, user.username, code)
 
+    await db.commit()
+
+    await email_service.send_verification_code(user.email, user.username, code)
     return {"message": "Account created. Check your email for a verification code"}
 
 
-async def login(db: AsyncSession, login_request: LoginRequest) -> TokenResponse:
+async def login(
+    db: AsyncSession, login_request: LoginRequest, email_service: EmailService
+) -> TokenResponse:
 
     existing = await db.execute(select(User).where(User.email == login_request.email))
     user = existing.scalar_one_or_none()
@@ -74,10 +73,23 @@ async def login(db: AsyncSession, login_request: LoginRequest) -> TokenResponse:
     if not user or not verify_password(login_request.password, user.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Your account has been suspended")
+
+    if not user.is_verified:
+        code = await create_verification_code(db, user.id)
+        await db.commit()
+        await email_service.send_verification_code(user.email, user.username, code)
+        raise HTTPException(
+            status_code=403,
+            detail="Your email address is not verified. A new code has been sent",
+        )
+
     access_token = create_access_token(user.id, user.role)
     refresh_token = create_refresh_token(user.id)
 
-    store_refresh_token(db, user.id, refresh_token)
+    await store_refresh_token(db, user.id, refresh_token)
+    await db.commit()
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
@@ -88,19 +100,16 @@ async def verify_email(db: AsyncSession, email: str, code: str) -> TokenResponse
     access_token = create_access_token(user.id, user.role)
     refresh_token = create_refresh_token(user.id)
 
-    store_refresh_token(db, user.id, refresh_token)
+    await store_refresh_token(db, user.id, refresh_token)
+    await db.commit()
 
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-    )
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 async def resend_verification(
     db: AsyncSession, email: str, email_service: EmailService
 ) -> dict:
     result = await db.execute(select(User).where(User.email == email))
-
     user = result.scalar_one_or_none()
 
     if not user:
@@ -112,6 +121,7 @@ async def resend_verification(
         raise HTTPException(status_code=400, detail="Email is already verified")
 
     code = await create_verification_code(db, user.id)
+    await db.commit()
 
     await email_service.send_verification_code(user.email, user.username, code)
 
