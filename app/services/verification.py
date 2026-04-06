@@ -19,6 +19,7 @@ async def create_verification_code(db: AsyncSession, user_id: int) -> str:
             )
         )
     )
+
     for record in existing.scalars():
         await db.delete(record)
 
@@ -46,7 +47,7 @@ async def verify_verification_code(db: AsyncSession, email: str, code: str) -> U
         raise HTTPException(status_code=400, detail="Invalid email or code")
 
     if user.is_verified:
-        raise HTTPException(status_code=400, detail="Email already verified")
+        raise HTTPException(status_code=400, detail="Email is already verified")
 
     result = await db.execute(
         select(EmailVerificationCode).where(
@@ -63,10 +64,15 @@ async def verify_verification_code(db: AsyncSession, email: str, code: str) -> U
 
     if code_record.expires_at < datetime.now(timezone.utc):
         await db.delete(code_record)
-        raise HTTPException(status_code=400, detail="Code expired. Request a new one")
+        await db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail="Verification code has expired. Please request a new one",
+        )
 
     if code_record.attempts >= MAX_VERIFICATION_ATTEMPTS:
         await db.delete(code_record)
+        await db.commit()
         raise HTTPException(
             status_code=429, detail="Too many failed attempts. Request a new code."
         )
@@ -77,6 +83,7 @@ async def verify_verification_code(db: AsyncSession, email: str, code: str) -> U
 
     user.is_verified = True
     code_record.used = True
+
     await db.commit()
     await db.refresh(user)
     return user

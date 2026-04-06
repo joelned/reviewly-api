@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from datetime import datetime, timedelta, timezone
 
 from app.models.user import User, UserRole, RefreshToken, hash_token
@@ -10,12 +10,12 @@ from app.utils.security import (
     hash_password,
     verify_password,
     create_access_token,
-    decode_refresh_token_jwt,
     create_refresh_token,
-    InvalidTokenError,
 )
-
+from app.services.verification import create_verification_code, verify_verification_code
+from app.services.email_service import EmailService
 from app.config import settings
+from app.schemas.auth import TokenResponse
 
 
 async def store_refresh_token(db: AsyncSession, user_id: int, token: str) -> None:
@@ -27,23 +27,27 @@ async def store_refresh_token(db: AsyncSession, user_id: int, token: str) -> Non
     )
 
     db.add(record)
+    await db.commit()
 
 
 async def register_user(db: AsyncSession, data: RegisterRequest) -> dict:
     existing_email = await db.execute(select(User).where(User.email == data.email))
     if existing_email.scalar_one_or_none():
-        raise HTTPException(400, "Email already registered")
+        raise HTTPException(400, "An account with this email already exists")
+
     existing_username = await db.execute(
         select(User).where(User.username == data.username)
     )
+
     if existing_username.scalar_one_or_none():
-        raise HTTPException(400, "Username already taken")
+        raise HTTPException(400, "An account with this username already exists")
 
     role = UserRole.REVIEWER if data.role == "reviewer" else UserRole.SUBMITTER
+
     user = User(
         email=data.email,
         username=data.username,
-        password=data.password,
+        password=hash_password(data.password),
         role=role,
     )
 
@@ -53,15 +57,62 @@ async def register_user(db: AsyncSession, data: RegisterRequest) -> dict:
     profile = Profile(user_id=user.id, display_name=user.username)
     db.add(profile)
 
-    refresh_token = create_refresh_token(user.id)
-    await store_refresh_token(db, user.id, refresh_token)
-
     await db.commit()
     await db.refresh(user)
 
-    return {
-        "access_token": create_access_token(user.id, user.role.value),
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "user": user,
-    }
+    code = await create_verification_code(db, user.id)
+    await EmailService.send_verification_code(user.email, user.username, code)
+
+    return {"message": "Account created. Check your email for a verification code"}
+
+
+async def login(db: AsyncSession, login_request: LoginRequest) -> TokenResponse:
+
+    existing = await db.execute(select(User).where(User.email == login_request.email))
+    user = existing.scalar_one_or_none()
+
+    if not user or not verify_password(login_request.password, user.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    access_token = create_access_token(user.id, user.role)
+    refresh_token = create_refresh_token(user.id)
+
+    store_refresh_token(db, user.id, refresh_token)
+
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+
+async def verify_email(db: AsyncSession, email: str, code: str) -> TokenResponse:
+    user = await verify_verification_code(db, email, code)
+
+    access_token = create_access_token(user.id, user.role)
+    refresh_token = create_refresh_token(user.id)
+
+    store_refresh_token(db, user.id, refresh_token)
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )
+
+
+async def resend_verification(
+    db: AsyncSession, email: str, email_service: EmailService
+) -> dict:
+    result = await db.execute(select(User).where(User.email == email))
+
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=400, detail="No account was found with this email"
+        )
+
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="Email is already verified")
+
+    code = await create_verification_code(db, user.id)
+
+    await email_service.send_verification_code(user.email, user.username, code)
+
+    return {"message": "A new verification code has been sent to your email"}

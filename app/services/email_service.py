@@ -2,7 +2,7 @@ import resend
 from fastapi import BackgroundTasks
 from app.config import settings
 
-resend.api_key = settings.RESEND_API_KEY
+resend.api_key = settings.resend_api_key
 
 
 class EmailService:
@@ -252,7 +252,7 @@ If you did not request this email, you can safely ignore it.
 """
 
         params = resend.Emails.SendParams(
-            from_=settings.FROM_EMAIL,
+            from_=settings.resend_from_email,
             to=[to_email],
             subject="Your verification code - Reviewly",
             html=html_content,

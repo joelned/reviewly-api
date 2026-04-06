@@ -80,4 +80,4 @@ def hash_code(code: str) -> str:
 
 
 def get_code_expiry(minutes: int = 15) -> datetime:
-    datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    return datetime.now(timezone.utc) + timedelta(minutes=minutes)
