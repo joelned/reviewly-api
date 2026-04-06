@@ -34,7 +34,6 @@ async def create_verification_code(db: AsyncSession, user_id: int) -> str:
         )
     )
 
-    await db.commit()
     return code
 
 

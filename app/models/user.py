@@ -69,11 +69,13 @@ class EmailVerificationCode(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
-    code: Mapped[str] = mapped_column(String(6), index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    code: Mapped[str] = mapped_column(String(255), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     used: Mapped[bool] = mapped_column(Boolean, default=False)
     attempts: Mapped[bool] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     user: Mapped["User"] = relationship(back_populates="verification_codes")
 
 

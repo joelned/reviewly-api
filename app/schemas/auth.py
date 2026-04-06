@@ -4,8 +4,13 @@ from pydantic import BaseModel, EmailStr, Field
 class RegisterRequest(BaseModel):
     email: EmailStr
     username: str = Field(min_length=3, max_length=40)
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8, max_length=72)
     role: str = "submitter"
+
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    code: str
 
 
 class LoginRequest(BaseModel):

@@ -250,13 +250,14 @@ If you did not request this email, you can safely ignore it.
 
 © 2026 Reviewly
 """
+        print(settings.resend_from_email)
 
-        params = resend.Emails.SendParams(
-            from_=settings.resend_from_email,
-            to=[to_email],
-            subject="Your verification code - Reviewly",
-            html=html_content,
-            text=text_content,
-        )
+        params: resend.Emails.SendParams = {
+            "from": settings.resend_from_email,
+            "to": [to_email],
+            "subject": "Your verification code - Reviewly",
+            "html": html_content,
+            "text": text_content,
+        }
 
         self.background_tasks.add_task(resend.Emails.send, params)
