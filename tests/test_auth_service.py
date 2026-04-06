@@ -1,9 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
-from app.services.auth_service import register_user, login, store_refresh_token
+from app.services.auth_service import register_user, login
 from app.schemas.auth import RegisterRequest, LoginRequest
-from app.utils.security import create_access_token, create_refresh_token
 
 
 @pytest.mark.asyncio
