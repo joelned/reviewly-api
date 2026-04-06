@@ -50,10 +50,10 @@ async def register_user(
         role=UserRole.REVIEWER if data.role == "reviewer" else UserRole.SUBMITTER,
     )
 
-    db.add(user)
+    await db.add(user)
     await db.flush()
 
-    db.add(Profile(user_id=user.id, display_name=user.username))
+    await db.add(Profile(user_id=user.id, display_name=user.username))
 
     code = await create_verification_code(db, user.id)
 
