@@ -26,7 +26,7 @@ async def store_refresh_token(db: AsyncSession, user_id: int, token: str) -> Non
         + timedelta(days=settings.refresh_token_expire_days),
     )
 
-    db.add(record)
+    await db.add(record)
 
 
 async def register_user(

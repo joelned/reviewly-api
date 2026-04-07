@@ -126,3 +126,35 @@ async def test_login_user_unauthorized():
     db.commit.assert_not_called()
     mock_access.assert_not_called()
     mock_refresh.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_login_user_successful():
+    db = AsyncMock()
+    email_service = MagicMock()
+
+    existing_user = MagicMock()
+    existing_user.id = 1
+    existing_user.role = "submitter"
+
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none = MagicMock(return_value=existing_user)
+
+    db.execute = AsyncMock(return_value=mock_result)
+
+    payload = LoginRequest(email="test@gmail.com", password="password123")
+
+    with patch("app.services.auth_service.verify_password", return_value=True):
+        with patch(
+            "app.utils.security.create_access_token",
+            new_callable=AsyncMock,
+            return_value="123abc4",
+        ):
+            with patch(
+                "app.utils.security.create_refresh_token",
+                new_callable=AsyncMock,
+                return_value="12345abcde",
+            ):
+                await login(db, payload, email_service)
+
+    db.commit.assert_called_once()
