@@ -22,7 +22,7 @@ class Profile(Base, TimeStampMixin):
 
 
 class ReviewerSkills(Base):
-    __tablename__ = "reveiwer_skills"
+    __tablename__ = "reviewer_skills"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     profile_id: Mapped[int] = mapped_column(ForeignKey("profiles.id"), index=True)
