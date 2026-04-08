@@ -38,13 +38,21 @@ class User(Base, TimeStampMixin):
     password_reset_codes: Mapped[list["PasswordResetCode"]] = relationship(
         "PasswordResetCode", back_populates="user"
     )
+    submissions: Mapped[list["Submission"]] = relationship(  # type: ignore  # noqa: F821
+        "Submission",
+        foreign_keys="Submission.submitter_id",
+        back_populates="submitter",
+    )
+    assigned_reviews: Mapped[list["Submission"]] = relationship(  # type: ignore # noqa: F821
+        "Submission",
+        foreign_keys="Submission.reviewer_id",
+        back_populates="reviewer",
+    )
 
 
 # Linter warnings appear because classes aren't directly imported in model files, but SQLAlchemy resolves them after all models load.
 
 # TODO: implement these relationships at a later time
-# submissions: Mapped[list["Submission"]] = relationship(back_populates="author")
-# reviews: Mapped[list["Review"]] = relationship(back_populates="reviewer")
 # notifications: Mapped[list["Notification"]] = relationship(back_populates="user")
 
 

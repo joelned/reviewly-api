@@ -5,7 +5,7 @@ from alembic import context
 import asyncio
 
 from app.database import Base
-from app.models import user, profile
+from app.models import user, profile, submissions
 from app.config import settings
 
 config = context.config
